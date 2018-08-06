@@ -1,16 +1,21 @@
 #!/usr/bin/python3
 
 import os
+import re
 import sys
 import json
 
 
-class UniversalSpectrumIdentifier:
+class UniversalSpectrumIdentifier(object):
 
-    #### Constructor
-    def __init__(self):
+    # usi object takes usiStr an automatically parses it and stores attributes
+    # usi objects can still exist even if the usi str is incorrect.
+    # it will simply show where the error in the string is
+    def __init__(self, usi):
         # is there a better way to do this oh god
-        self.usi = None
+
+        self.valid = False
+        self.usi = usi
         self.datasetIdentifier = None
         self.datasetSubfolder = None
         self.msRunName = None
@@ -19,10 +24,24 @@ class UniversalSpectrumIdentifier:
         self.interpretation = None
         self.peptidoform = None
         self.charge = None
+        self.error = 0
 
-    #### Destructor
-    def __del__(self):
-        pass
+        # parse out usi and store response in error
+        error = self.parse()
+
+        # no errors
+        if error == 0:
+            print()
+            print("Found index '" + self.index
+                  + "' from USI " + self.usi + "\n")
+            self.USIattributes()
+            self.valid = True
+        # errors found in usi
+        if error != 0:
+            print("Number of errors: " + str(self.error))
+            self.valid = False
+            print("ERROR: Invalid USI " + self.usi)
+        print()
 
     # Attributes:
     #   usi
@@ -35,61 +54,158 @@ class UniversalSpectrumIdentifier:
     #   peptidoform
     #   charge
 
-    #### parser a usi string
-    def parse(self, usi):
-        print("INFO: Parsing USI string '" + usi + "'")
+    # parses USI string
+    def parse(self):
+        print("\nINFO: Parsing USI string '" + self.usi + "'")
         elementOffset = 0
         offset = 0
-        if usi:
-            self.usi(usi)
+        if self.usi.startswith("mzspec:"):
+            self.usiMzspec = self.usi[len("mzspec:"):]
         else:
-            print("ERROR: No USI provided")
-            return "error"
-        if usi.startswith("mzspec:"):
-            self.usi(usi[len("mzspec")])
-        elements = self.usi.split(":")
+            self.error += 1
+            print("ERROR: USI does not begin with prefix 'mszpec:'")
+            return self.error
+
+        # creates list of potential usi attributes
+        elements = self.usiMzspec.split(":")
         nElements = len(elements)
-        print(elements)
-        print(nElements)
+        # print(elements)
+        # print(nElements)
+
+        # checks if usi has at least 4 colon-separated fields
         if nElements < 4:
             print("ERROR: USI does not have the minimum required 4 colon-separated fields after mzspec")
-            return "error"
-        if elements[offset] is None:
+            self.error += 1
+            return self.error
+        offset = elementOffset
+
+        # datasetIdentifier field
+        self.datasetIdentifier = elements[offset]
+        if self.datasetIdentifier is None:
             print("Dataset identifier is empty. Not permitted.")
-        elif elements[offset].startswith("PXD"):
+            self.error += 1
+
+        # this is the way it has been implemented now, but it can easily be changed to regex for other types of datasets
+        elif self.datasetIdentifier.startswith("PXD"):
             self.datasetIdentifier = elements[offset]
             print("Dataset identifier is PXD compliant. Allowed.")
         else:
             print("Dataset identifier unknown. Not permitted.")
-        offset += 1
+            self.error += 1
+        elementOffset += 1
+        offset = elementOffset
+        nextField = elements[offset]
         offsetShift = 0
-        if elements[offset] == '':
-            print("old style. empty is ok.")
+        # empty datasetsubfolder
+        if nextField == '':
+            print("old style. empty is ok. Empty datasetsubfolder probably.")
             offsetShift = 1
-        offset += offsetShift
-        if elements[offset]:
-            self.msRunName = elements[offset]
+
+        offset = elementOffset + offsetShift
+        self.msRunName = elements[offset]
+
+        if self.msRunName:
             print("MS run equals " + self.msRunName)
-
-        offset += 1
-        if elements[offset] == "scan" or "mgfi":
-            print("indexFlag is OK.")
-            self.indexFlag = elements[offset]
         else:
-            potentialOffsetShift = 1
-            appendStr = "";
-            repaired = False
-            while offset + offsetShift <= nElements:
-                if elements[offset + offsetShift].startsWith("scan" or "mgfi"):
-                    self.indexFlag = elements[offset + offsetShift]
-                    self.msRunName += appendStr
-                    repaired = True
-                appendStr += ":" + elements[offset + offsetShift];
-                offsetShift += 1
-        return "OK"
+            print("MS Run identifier empty. Not permitted.")
+            self.error += 1
+
+        elementOffset += 1
+        offset = elementOffset + offsetShift
+        self.indexFlag = elements[offset]
+        # print("check " + self.indexFlag)
+        # does indexFlag exist?
+        if self.indexFlag:
+            # is it scan or mgfi
+            if self.indexFlag == "scan" or self.indexFlag == "mgfi":
+                print("indexFlag is OK.")
+            # is there potentially some weird colon escaping in the msRun name?
+            else:
+                potentialOffsetShift = offsetShift
+                appendStr = ""
+                repaired = False
+
+                # fix colon escaping if it exists
+                while elementOffset + potentialOffsetShift < nElements:
+                    # go until program finds 'scan' or 'mgfi' index flag types
+                    if elements[elementOffset + potentialOffsetShift].startswith("scan") or elements[
+                        elementOffset + potentialOffsetShift].startswith(
+                        "mgfi"):
+                        self.indexFlag = elements[elementOffset + potentialOffsetShift]
+                        self.msRunName += appendStr
+                        offsetShift = potentialOffsetShift
+                        repaired = True
+                        break
+                    appendStr += ":" + elements[elementOffset + potentialOffsetShift]
+
+                    potentialOffsetShift += 1
+
+                # colon escape fixed and msRun field updated
+                if repaired:
+                    print("Unescaped colon in msRun name. Hopefully taken care of. Please fix this")
+                    print("msRun name revised to '{}'".format(self.msRunName))
+
+                # no 'scan' or 'mgfi' fields found later. assume broken index flag
+                else:
+                    self.error += 1
+                    print("Index type invalid. Must be 'scan' or 'mgfi'")
+                    self.indexFlag = "ERROR"
+                    return self.error
+
+        # no index flag
+        else:
+            self.error += 1
+            print("Index flag empty! Not permitted.")
+            self.indexFlag = "ERROR"
+            return self.error
+        elementOffset += 1
+        offset = offsetShift + elementOffset
+
+        # index for index flag if flag is valid. useless if index flag is invalid
+        self.index = elements[offset]
+        if self.index:
+            print("Index is " + self.index)
+        else:
+            print("Index field empty. Not permitted.")
+            self.error += 1
+
+        elementOffset += 1
+        offset = elementOffset + offsetShift
+
+        # if statement check to see if the USI even has an interpretation field
+        if offset < nElements:
+            self.interpretation = elements[offset]
+            self.peptidoform = ''
+            self.charge = ''
+            if self.interpretation and self.interpretation != '':
+                find = re.match("^\s*(.+)\/(\d+)\s*$", self.interpretation)
+                # match
+                if find:
+                    # subfields of interpretation
+                    self.peptidoform = find.group(1)
+                    self.charge = find.group(2)
+                    print("Interpreted peptidoform = {}, charge = {}".format(self.peptidoform, self.charge))
+                else:
+                    print("Unable to parse interpretation {} as peptidoform/charge".format(self.interpretation))
+            else:
+                print("Interpretation field not provided. OK.")
+
+        # returns count of errors found in usi. useful for checking if the entire identifier is valid.
+        return self.error
+
+    # prints out USI attributes
+    def USIattributes(self):
+        print("USI: " + self.usi)
+        print("Dataset Identifier: " + str(self.datasetIdentifier))
+        print("Dataset Subfolder: " + str(self.datasetSubfolder))
+        print("MS run name: " + str(self.msRunName))
+        print("Index flag: " + str(self.indexFlag))
+        print("Index: " + str(self.index))
+        print("Peptido form: " + str(self.peptidoform))
+        print("Charge: " + str(self.charge))
 
 
-#### If this class is run from the command line, perform a short little test to see if it is working correctly
+# If this class is run from the command line, perform a short little test to see if it is working correctly
 def main():
     testUSIs = [
         ["valid", "mzspec:PXD002437:00261_A06_P001564_B00E_A00_R1:scan:10951"],
@@ -108,21 +224,24 @@ def main():
         ["valid", "mzspec:PXD002437::00261_A06_P001564_B00E_A00_R1:test1:scan:10951:PEPT[Phospho]IDELVISK/2"],
         ["valid", "mzspec:PXD002437::00261_A06_P001564_B00E_A00_R1\\:test1:scan:10951:PEPT[Phospho]IDELVISK/2"],
     ]
-
-    #### Loop over each test USI, parse it, and determine if it is valid or not, and print the index number
+    testUSIsValid = []
+    # Loop over each test USI, parse it, and determine if it is valid or not, and print the index number
     print("Testing example USIs:")
     for usiSet in testUSIs:
         expectedStatus = usiSet[0]
         usiStr = usiSet[1]
 
-        #### Create a new UniversalSpectrumIdentifier object
-        usi = UniversalSpectrumIdentifier()
-        response = usi.parse(usiStr)
-        if response == "OK":
-            print("Found index '" + usi.index
-                  + "' from USI " + usiStr)
-        else:
-            print("ERROR: Invalid USI " + usiStr)
+        # Create a new UniversalSpectrumIdentifier object
+        # made the USI object itself take a string so that parse does not need to be called explicitly
+        usi = UniversalSpectrumIdentifier(usiStr)
+        response = usi.valid
+        testUSIsValid.append(response)
+    # check to see if parsing is correct
+    print(testUSIsValid)
 
 
 if __name__ == "__main__": main()
+# usi = UniversalSpectrumIdentifier()
+# inp = input("usi: ")
+# print(usi.parse(inp))
+# usi.USIattributes()
