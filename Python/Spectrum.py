@@ -18,14 +18,21 @@ class Spectrum(object):
 
         if res.status_code == 200:
             data = res.json()
-            self.results = data["results"]
+
+            self.results = data["results"][0]["Spectrum"]
             self.r.code = "OK"
         else:
-            self.r.code("ERROR")
+            self.r.code = "ERROR"
 
         return self.r
 
     def show(self):
-        print(self.results[0])
-        for i in self.results[0]["Spectrum"]["PeakList"]:
-            print(i)
+        print("Name: {}".format(self.results["Name"]))
+        print("PrecursorMZ: {}".format(self.results["PrecursorMZ"]))
+        print("USI: {}".format(self.results["USI"]))
+        print("NumPeaks: {}".format(self.results["NumPeaks"]))
+        for peak in self.results["PeakList"]:
+            for val in peak:
+                print(val, end=" ")
+            print()
+
