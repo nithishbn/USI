@@ -1,12 +1,6 @@
-#!/usr/bin/python3
 
-import os
 import re
-import sys
-import json
-
 from Python.Response import Response
-
 
 class UniversalSpectrumIdentifier(object):
 
@@ -28,7 +22,7 @@ class UniversalSpectrumIdentifier(object):
         self.charge = None
         self.error = 0
 
-        # parse out usi and store response in error
+        # parse out usi and store response
         response = self.parse()
 
         # no errors
@@ -36,7 +30,7 @@ class UniversalSpectrumIdentifier(object):
             print()
             print("Found index '" + self.index
                   + "' from USI " + self.usi + "\n")
-            self.USIattributes()
+            # self.show()
             self.valid = True
         # errors found in usi
         else:
@@ -67,7 +61,7 @@ class UniversalSpectrumIdentifier(object):
         else:
             self.error += 1
             print("ERROR: USI does not begin with prefix 'mszpec:'")
-            r.code="ERROR"
+            r.code = "ERROR"
             return r
 
         # creates list of potential usi attributes
@@ -206,7 +200,7 @@ class UniversalSpectrumIdentifier(object):
         return r
 
     # prints out USI attributes
-    def USIattributes(self):
+    def show(self):
         print("USI: " + self.usi)
         print("Dataset Identifier: " + str(self.datasetIdentifier))
         print("Dataset Subfolder: " + str(self.datasetSubfolder))
