@@ -1,10 +1,6 @@
-#!/usr/bin/python3
 
-import os
 import re
-import sys
-import json
-
+from Python.Response import Response
 
 class UniversalSpectrumIdentifier(object):
 
@@ -26,18 +22,18 @@ class UniversalSpectrumIdentifier(object):
         self.charge = None
         self.error = 0
 
-        # parse out usi and store response in error
-        error = self.parse()
+        # parse out usi and store response
+        response = self.parse()
 
         # no errors
-        if error == 0:
+        if response.code == "OK":
             print()
             print("Found index '" + self.index
                   + "' from USI " + self.usi + "\n")
-            self.USIattributes()
+            # self.show()
             self.valid = True
         # errors found in usi
-        if error != 0:
+        else:
             print("Number of errors: " + str(self.error))
             self.valid = False
             print("ERROR: Invalid USI " + self.usi)
@@ -56,6 +52,7 @@ class UniversalSpectrumIdentifier(object):
 
     # parses USI string
     def parse(self):
+        r = Response()
         print("\nINFO: Parsing USI string '" + self.usi + "'")
         elementOffset = 0
         offset = 0
@@ -64,7 +61,8 @@ class UniversalSpectrumIdentifier(object):
         else:
             self.error += 1
             print("ERROR: USI does not begin with prefix 'mszpec:'")
-            return self.error
+            r.code = "ERROR"
+            return r
 
         # creates list of potential usi attributes
         elements = self.usiMzspec.split(":")
@@ -76,7 +74,8 @@ class UniversalSpectrumIdentifier(object):
         if nElements < 4:
             print("ERROR: USI does not have the minimum required 4 colon-separated fields after mzspec")
             self.error += 1
-            return self.error
+            r.code = "ERROR"
+            return r
         offset = elementOffset
 
         # datasetIdentifier field
@@ -150,14 +149,16 @@ class UniversalSpectrumIdentifier(object):
                     self.error += 1
                     print("Index type invalid. Must be 'scan' or 'mgfi'")
                     self.indexFlag = "ERROR"
-                    return self.error
+                    r.code = "ERROR"
+                    return r
 
         # no index flag
         else:
             self.error += 1
             print("Index flag empty! Not permitted.")
             self.indexFlag = "ERROR"
-            return self.error
+            r.code = "ERROR"
+            return r
         elementOffset += 1
         offset = offsetShift + elementOffset
 
@@ -191,10 +192,15 @@ class UniversalSpectrumIdentifier(object):
                 print("Interpretation field not provided. OK.")
 
         # returns count of errors found in usi. useful for checking if the entire identifier is valid.
-        return self.error
+
+        if self.error > 0:
+            r.code = "ERROR"
+        else:
+            r.code = "OK"
+        return r
 
     # prints out USI attributes
-    def USIattributes(self):
+    def show(self):
         print("USI: " + self.usi)
         print("Dataset Identifier: " + str(self.datasetIdentifier))
         print("Dataset Subfolder: " + str(self.datasetSubfolder))
