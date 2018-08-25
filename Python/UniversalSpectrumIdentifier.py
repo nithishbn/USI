@@ -1,6 +1,6 @@
-
 import re
 from Python.Response import Response
+
 
 class UniversalSpectrumIdentifier(object):
 
@@ -20,6 +20,7 @@ class UniversalSpectrumIdentifier(object):
         self.interpretation = None
         self.peptidoform = None
         self.charge = None
+        self.provenanceIdentifier = None
         self.error = 0
 
         # parse out usi and store response
@@ -138,12 +139,6 @@ class UniversalSpectrumIdentifier(object):
                     appendStr += ":" + elements[elementOffset + potentialOffsetShift]
 
                     potentialOffsetShift += 1
-
-                # colon escape fixed and msRun field updated
-                if repaired:
-                    print("Unescaped colon in msRun name. Hopefully taken care of. Please fix this")
-                    print("msRun name revised to '{}'".format(self.msRunName))
-
                 # no 'scan' or 'mgfi' fields found later. assume broken index flag
                 else:
                     self.error += 1
@@ -190,7 +185,12 @@ class UniversalSpectrumIdentifier(object):
                     print("Unable to parse interpretation {} as peptidoform/charge".format(self.interpretation))
             else:
                 print("Interpretation field not provided. OK.")
+        offset += 1
 
+        # provenance identifier
+        if offset < nElements:
+            self.provenanceIdentifier = elements[offset]
+            print("Provenance Identifier = ".format(self.provenanceIdentifier))
         # returns count of errors found in usi. useful for checking if the entire identifier is valid.
 
         if self.error > 0:
@@ -246,8 +246,8 @@ def main():
     print(testUSIsValid)
 
 
-if __name__ == "__main__": main()
-# usi = UniversalSpectrumIdentifier()
+# if __name__ == "__main__": main()
+usi = UniversalSpectrumIdentifier("mzspec:PXD002437::00261_A06_P001564:_B00E_A00_R1:test1:scan:10951:PEPT[Phospho]IDELVISK/2")
 # inp = input("usi: ")
 # print(usi.parse(inp))
-# usi.USIattributes()
+usi.show()

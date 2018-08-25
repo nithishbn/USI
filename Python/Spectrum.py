@@ -45,4 +45,5 @@ class Spectrum(object):
         for peak in self.peakList:
             for val in peak:
                 print(val, end=" ")
+
             print()
