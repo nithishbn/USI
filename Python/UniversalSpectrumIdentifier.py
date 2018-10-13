@@ -1,7 +1,6 @@
 
 import re
-from Python.Response import Response
-
+import Response
 class UniversalSpectrumIdentifier(object):
 
     # usi object takes usiStr an automatically parses it and stores attributes
@@ -21,23 +20,10 @@ class UniversalSpectrumIdentifier(object):
         self.peptidoform = None
         self.charge = None
         self.error = 0
-
+        
         # parse out usi and store response
-        response = self.parse()
-
-        # no errors
-        if response.code == "OK":
-            print()
-            print("Found index '" + self.index
-                  + "' from USI " + self.usi + "\n")
-            # self.show()
-            self.valid = True
-        # errors found in usi
-        else:
-            print("Number of errors: " + str(self.error))
-            self.valid = False
-            print("ERROR: Invalid USI " + self.usi)
-        print()
+        
+        
 
     # Attributes:
     #   usi
@@ -51,16 +37,18 @@ class UniversalSpectrumIdentifier(object):
     #   charge
 
     # parses USI string
-    def parse(self):
-        r = Response()
-        print("\nINFO: Parsing USI string '" + self.usi + "'")
+    def parse(self, verbose):
+        r = Response.Response()
+        print()
+        verboseprint = print if verbose else lambda *a, **k: None
+        verboseprint("\nINFO: Parsing USI string '" + self.usi + "'")
         elementOffset = 0
         offset = 0
         if self.usi.startswith("mzspec:"):
             self.usiMzspec = self.usi[len("mzspec:"):]
         else:
             self.error += 1
-            print("ERROR: USI does not begin with prefix 'mszpec:'")
+            verboseprint("ERROR: USI does not begin with prefix 'mszpec:'")
             r.code = "ERROR"
             return r
 
@@ -72,7 +60,7 @@ class UniversalSpectrumIdentifier(object):
 
         # checks if usi has at least 4 colon-separated fields
         if nElements < 4:
-            print("ERROR: USI does not have the minimum required 4 colon-separated fields after mzspec")
+            verboseprint("ERROR: USI does not have the minimum required 4 colon-separated fields after mzspec")
             self.error += 1
             r.code = "ERROR"
             return r
@@ -81,15 +69,15 @@ class UniversalSpectrumIdentifier(object):
         # datasetIdentifier field
         self.datasetIdentifier = elements[offset]
         if self.datasetIdentifier is None:
-            print("Dataset identifier is empty. Not permitted.")
+            verboseprint("Dataset identifier is empty. Not permitted.")
             self.error += 1
 
         # this is the way it has been implemented now, but it can easily be changed to regex for other types of datasets
         elif self.datasetIdentifier.startswith("PXD"):
             self.datasetIdentifier = elements[offset]
-            print("Dataset identifier is PXD compliant. Allowed.")
+            verboseprint("Dataset identifier is PXD compliant. Allowed.")
         else:
-            print("Dataset identifier unknown. Not permitted.")
+            verboseprint("Dataset identifier unknown. Not permitted.")
             self.error += 1
         elementOffset += 1
         offset = elementOffset
@@ -97,16 +85,16 @@ class UniversalSpectrumIdentifier(object):
         offsetShift = 0
         # empty datasetsubfolder
         if nextField == '':
-            print("old style. empty is ok. Empty datasetsubfolder probably.")
+            verboseprint("old style. empty is ok. Empty datasetsubfolder probably.")
             offsetShift = 1
 
         offset = elementOffset + offsetShift
         self.msRunName = elements[offset]
 
         if self.msRunName:
-            print("MS run equals " + self.msRunName)
+            verboseprint("MS run equals " + self.msRunName)
         else:
-            print("MS Run identifier empty. Not permitted.")
+            verboseprint("MS Run identifier empty. Not permitted.")
             self.error += 1
 
         elementOffset += 1
@@ -117,7 +105,7 @@ class UniversalSpectrumIdentifier(object):
         if self.indexFlag:
             # is it scan or mgfi
             if self.indexFlag == "scan" or self.indexFlag == "mgfi":
-                print("indexFlag is OK.")
+                verboseprint("indexFlag is OK.")
             # is there potentially some weird colon escaping in the msRun name?
             else:
                 potentialOffsetShift = offsetShift
@@ -141,13 +129,13 @@ class UniversalSpectrumIdentifier(object):
 
                 # colon escape fixed and msRun field updated
                 if repaired:
-                    print("Unescaped colon in msRun name. Hopefully taken care of. Please fix this")
-                    print("msRun name revised to '{}'".format(self.msRunName))
+                    verboseprint("Unescaped colon in msRun name. Hopefully taken care of. Please fix this")
+                    verboseprint("msRun name revised to '{}'".format(self.msRunName))
 
                 # no 'scan' or 'mgfi' fields found later. assume broken index flag
                 else:
                     self.error += 1
-                    print("Index type invalid. Must be 'scan' or 'mgfi'")
+                    verboseprint("Index type invalid. Must be 'scan' or 'mgfi'")
                     self.indexFlag = "ERROR"
                     r.code = "ERROR"
                     return r
@@ -155,7 +143,7 @@ class UniversalSpectrumIdentifier(object):
         # no index flag
         else:
             self.error += 1
-            print("Index flag empty! Not permitted.")
+            verboseprint("Index flag empty! Not permitted.")
             self.indexFlag = "ERROR"
             r.code = "ERROR"
             return r
@@ -165,9 +153,9 @@ class UniversalSpectrumIdentifier(object):
         # index for index flag if flag is valid. useless if index flag is invalid
         self.index = elements[offset]
         if self.index:
-            print("Index is " + self.index)
+            verboseprint("Index is " + self.index)
         else:
-            print("Index field empty. Not permitted.")
+            verboseprint("Index field empty. Not permitted.")
             self.error += 1
 
         elementOffset += 1
@@ -185,11 +173,11 @@ class UniversalSpectrumIdentifier(object):
                     # subfields of interpretation
                     self.peptidoform = find.group(1)
                     self.charge = find.group(2)
-                    print("Interpreted peptidoform = {}, charge = {}".format(self.peptidoform, self.charge))
+                    verboseprint("Interpreted peptidoform = {}, charge = {}".format(self.peptidoform, self.charge))
                 else:
-                    print("Unable to parse interpretation {} as peptidoform/charge".format(self.interpretation))
+                    verboseprint("Unable to parse interpretation {} as peptidoform/charge".format(self.interpretation))
             else:
-                print("Interpretation field not provided. OK.")
+                verboseprint("Interpretation field not provided. OK.")
 
         # returns count of errors found in usi. useful for checking if the entire identifier is valid.
 
@@ -197,7 +185,19 @@ class UniversalSpectrumIdentifier(object):
             r.code = "ERROR"
         else:
             r.code = "OK"
-        return r
+        # no errors
+        if r.code == "OK":
+            print()
+            print("Found index '" + self.index
+                + "' from USI " + self.usi + "\n")
+            # self.show()
+            self.valid = True
+        # errors found in usi
+        else:
+            print("Number of errors: " + str(self.error))
+            self.valid = False
+            print("ERROR: Invalid USI " + self.usi)
+        print()
 
     # prints out USI attributes
     def show(self):
@@ -246,8 +246,9 @@ def main():
     print(testUSIsValid)
 
 
-if __name__ == "__main__": main()
-# usi = UniversalSpectrumIdentifier()
+# if __name__ == "__main__": main()
 # inp = input("usi: ")
-# print(usi.parse(inp))
-# usi.USIattributes()
+# usi = UniversalSpectrumIdentifier(inp)
+
+# usi.parse(verbose=False)
+# usi.show()
