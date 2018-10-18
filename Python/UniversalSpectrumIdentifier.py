@@ -1,5 +1,7 @@
 import re
 import Response
+from pyteomics.mass import Unimod
+
 class UniversalSpectrumIdentifier(object):
 
     # usi object takes usiStr an automatically parses it and stores attributes
@@ -164,6 +166,7 @@ class UniversalSpectrumIdentifier(object):
         # if statement check to see if the USI even has an interpretation field
         if offset < nElements:
             self.interpretation = elements[offset]
+            print(self.interpretation)
             self.peptidoform = ''
             self.charge = ''
             if self.interpretation and self.interpretation != '':
@@ -172,8 +175,22 @@ class UniversalSpectrumIdentifier(object):
                 if find:
                     # subfields of interpretation
                     self.peptidoform = find.group(1)
+                    # print(self.peptidoform)
                     self.charge = find.group(2)
                     verboseprint("Interpreted peptidoform = {}, charge = {}".format(self.peptidoform, self.charge))
+                    # peptido = Unimod(source="http://www.unimod.org/xml/unimod.xml")
+                    find2 = str(re.findall('\[([A-Z].+)\]', str(self.peptidoform))[0])
+                    peptide = Unimod(source="http://www.unimod.org/xml/unimod.xml")
+                    res = peptide.by_title(str(find2))
+                    if res is not None:
+                        verboseprint("Valid peptidoform {}".format(find2))
+                        verboseprint("     id= {}".format(res["record_id"]))
+                        verboseprint("     mono= {}".format(res["mono_mass"]))
+                    else:
+                        verboseprint("ERROR: Modification " + find2 +" is not found!")
+
+
+
                 else:
                     verboseprint("Unable to parse interpretation {} as peptidoform/charge".format(self.interpretation))
             else:
@@ -182,7 +199,7 @@ class UniversalSpectrumIdentifier(object):
         # provenance identifier
         if offset < nElements:
             self.provenanceIdentifier = elements[offset]
-            print("Provenance Identifier = ".format(self.provenanceIdentifier))
+            verboseprint("Provenance Identifier = {}".format(self.provenanceIdentifier))
         # returns count of errors found in usi. useful for checking if the entire identifier is valid.
 
         if self.error > 0:
@@ -191,7 +208,7 @@ class UniversalSpectrumIdentifier(object):
             r.code = "OK"
         # no errors
         if r.code == "OK":
-            print()
+            
             print("Found index '" + self.index
                 + "' from USI " + self.usi + "\n")
             # self.show()
@@ -201,7 +218,7 @@ class UniversalSpectrumIdentifier(object):
             print("Number of errors: " + str(self.error))
             self.valid = False
             print("ERROR: Invalid USI " + self.usi)
-        print()
+        
 
     # prints out USI attributes
     def show(self):
@@ -213,6 +230,7 @@ class UniversalSpectrumIdentifier(object):
         print("Index: " + str(self.index))
         print("Peptido form: " + str(self.peptidoform))
         print("Charge: " + str(self.charge))
+        print("Provenance Identifier: " + str(self.provenanceIdentifier))
 
 
 # If this class is run from the command line, perform a short little test to see if it is working correctly

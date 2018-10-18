@@ -1,6 +1,7 @@
 
 import requests
-import Response 
+
+from Response import Response
 
 
 class Spectrum(object):
@@ -8,7 +9,7 @@ class Spectrum(object):
     # directly takes an USI
     def __init__(self, usi):
         self.usi = usi.usi
-        self.r = Response.Response()
+        self.r = Response()
         self.results = None
         self.name = None
         self.precursorMZ = None
@@ -20,13 +21,13 @@ class Spectrum(object):
         res = requests.get(
             "https://db.systemsbiology.net/dev2/sbeams/cgi/{source}/Spectrum?usi={usi}".format(source=source,
                                                                                                usi=self.usi))
-
         if res.status_code == 200:
             data = res.json()
             # spectrum json tag
             if(data["nErrors"]>0):
-                print(data["message"])
+                
                 self.r.code = "ERROR"
+                self.r.message = data["message"]
             else:
                 self.results = data["results"][0]["Spectrum"]
 
@@ -36,9 +37,12 @@ class Spectrum(object):
                 self.numPeaks = self.results["NumPeaks"]
                 self.peakList = self.results["PeakList"]
                 self.r.code = "OK"
+                self.r.message = data["message"]
+                
         else:
             self.r.code = "ERROR"
-
+            # self.r.message = ""
+        
         return self.r
 
     # prints out attributes
