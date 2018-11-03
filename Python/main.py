@@ -1,8 +1,10 @@
-from Spectrum import Spectrum
-from UniversalSpectrumIdentifier import UniversalSpectrumIdentifier
+from Python.Spectrum import Spectrum
+from Python.UniversalSpectrumIdentifier import UniversalSpectrumIdentifier
 
 # USI created
 # usi = UniversalSpectrumIdentifier("asdf:PXD000561::Adult_Frontalcortex_bRP_Elite_85_f09:scan:17555:VLHPLEGAVVIIFK/2")
+
+
 usi = UniversalSpectrumIdentifier("mzspec:PXD002437:00261_A06_P001564_B00E_A00_R1:scan:10951:PEPT[Phospho]IDELVISK/2")
 # usi = UniversalSpectrumIdentifier("mzspec:PXD005712::20152002_RG_150218_Saita_Ctrl_3XXXXX:scan:5748:AVAAVAATGPASAPGPGGGR/2")
 usi.parse(verbose=True)
